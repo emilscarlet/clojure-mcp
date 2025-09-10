@@ -1,5 +1,47 @@
 # Changelog
 
+## [Unreleased]
+
+### Major Refactoring: Configuration-Based Agent Tools
+
+This release brings a major architectural improvement to agent tools. The previously hardcoded agent implementations have been replaced with a flexible configuration-based system, reducing code duplication by 600+ lines while maintaining full backward compatibility.
+
+### Added
+- **Agent Tool Builder System**: Dynamic agent creation from configurations
+  - Configuration-based agent definitions via `:agents` in `.clojure-mcp/config.edn`
+  - Tool-specific configurations merge with default agents via `:tools-config`
+  - Supports custom model selection per agent
+- **Component Configuration**: Extended configuration support for prompts and resources
+  - `:enable-prompts` and `:disable-prompts` for prompt filtering
+  - `:enable-resources` and `:disable-resources` for resource management
+- **REPL Helpers Improvements**: Enhanced REPL interaction utilities (#98)
+- **Agent Context Management**: Better isolation for file operations and conversation context
+  - Agents now properly reset context between conversations
+  - Improved file operation tracking
+
+### Changed
+- **MCP SDK Dependency**: Updated to version 0.12.1
+- **Agent Architecture**: Refactored all agents to use generalized agent library
+  - Dispatch agent system message moved to resource file
+  - Centralized tool construction via `tools.clj`
+  - Eliminated circular dependencies
+- **SQL File Support**: Mitigated errors when reading SQL files (#91)
+
+### Fixed
+- Agent context management now properly handles reset on every chat
+- Test suite updated for refactored agent system
+
+### Documentation
+- Added namespace editing example to `clojure_edit` tool description
+- Updated PROJECT_SUMMARY.md to reflect agent tools refactoring
+- Initial draft of new configuration documentation (#97)
+- Various documentation improvements and noise reduction
+
+### Internal
+- Removed 600+ lines of redundant hardcoded agent implementations
+- Refactored `tools.clj` to eliminate circular dependencies
+- Consolidated agent functionality into generalized agent library
+
 ## [0.1.8-alpha] - 2025-08-13
 
 ### What's New
