@@ -11,9 +11,16 @@ This release brings a major architectural improvement to agent tools. The previo
   - Configuration-based agent definitions via `:agents` in `.clojure-mcp/config.edn`
   - Tool-specific configurations merge with default agents via `:tools-config`
   - Supports custom model selection per agent
-- **Component Configuration**: Extended configuration support for prompts and resources
+  - See [Configuring Agents](doc/configuring-agents.md) and [Tools Configuration](doc/tools-configuration.md) guides
+- **Resource Configuration System**: New ability to control which files are exposed as resources
+  - `:enable-resources` and `:disable-resources` for selective resource exposure
+  - Control which documentation, project files, and prompts are available to AI assistants
+  - Filter resources by name to reduce context and focus on relevant materials
+  - See [Configuring Resources](doc/configuring-resources.md) guide
+- **Prompt Configuration System**: Fine-grained control over AI prompts
   - `:enable-prompts` and `:disable-prompts` for prompt filtering
-  - `:enable-resources` and `:disable-resources` for resource management
+  - Selectively enable only the prompts needed for your workflow
+  - See [Configuring Prompts](doc/configuring-prompts.md) and [Component Filtering](doc/component-filtering.md) guides
 - **REPL Helpers Improvements**: Enhanced REPL interaction utilities (#98)
 - **Agent Context Management**: Better isolation for file operations and conversation context
   - Agents now properly reset context between conversations
