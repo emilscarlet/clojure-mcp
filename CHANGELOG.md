@@ -1,12 +1,27 @@
 # Changelog
 
-## [Unreleased]
+## [Unreleased] - 0.1.9-alpha
 
 ### Major Refactoring: Configuration-Based Agent Tools
 
-This release brings a major architectural improvement to agent tools. The previously hardcoded agent implementations have been replaced with a flexible configuration-based system, reducing code duplication by 600+ lines while maintaining full backward compatibility.
+* You can now define agents, prompts, and resources in the clojure-mcp config.edn file
+* You can now have a user based ~/.clojure-mcp/config.edn file that will be merged into your project local config file.
+* For Claude Code and other CLI based llm client users, clojure-mcp can now start your nrepl for you and pass off the dynamic port number to clojure-mcp.
+* Let me repeat, **you can create sub-agents** in the clojure-mcp configuration [Configuring Agents](doc/configuring-agents.md). This coupled with being able to define LLM models allows a tremendous amount of flexibility in your tooling.
+
+All this and much much more!
 
 ### Added
+- **Automatic nREPL Server Startup**: New `:start-nrepl-cmd` configuration option to automatically start nREPL servers (#86)
+  - Automatically starts nREPL when specified in CLI args or config file
+  - Supports common nREPL commands like `lein repl :headless`, `clj -M:nrepl`, etc.
+  - Port discovery from command output with `:parse-nrepl-port` option
+  - Process management with graceful shutdown and timeout handling
+  - Vector format required for commands (e.g., `["lein" "repl" ":headless"]`)
+- **Home Directory Config Support**: Config files can now be loaded from `~/.config/clojure-mcp/config.edn` (#99)
+  - Provides user-level default configuration across all projects
+  - Project-level `.clojure-mcp/config.edn` takes precedence over home directory config
+  - Supports merging of configurations with proper precedence
 - **Agent Tool Builder System**: Dynamic agent creation from configurations
   - Configuration-based agent definitions via `:agents` in `.clojure-mcp/config.edn`
   - Tool-specific configurations merge with default agents via `:tools-config`
@@ -27,6 +42,9 @@ This release brings a major architectural improvement to agent tools. The previo
   - Improved file operation tracking
 
 ### Changed
+- **Configuration Documentation**: Reorganized and cleaned up configuration documentation in README (#99)
+  - Improved clarity and organization of configuration options
+  - Better examples and explanations for common use cases
 - **MCP SDK Dependency**: Updated to version 0.12.1
 - **Agent Architecture**: Refactored all agents to use generalized agent library
   - Dispatch agent system message moved to resource file
@@ -48,6 +66,15 @@ This release brings a major architectural improvement to agent tools. The previo
 - Removed 600+ lines of redundant hardcoded agent implementations
 - Refactored `tools.clj` to eliminate circular dependencies
 - Consolidated agent functionality into generalized agent library
+
+### Contributors
+
+Special thanks to all the contributors who made this release possible:
+
+- **Hugo Duncan** (@hugoduncan) - For implementing the automatic nREPL server startup feature with port discovery (#86)
+- **Jonathon McKitrick** (@jmckitrick) - For configuration improvements, home directory config support, and documentation (#97, #99)
+- **Kenny Williams** (@kennyjwilli) - For numerous REPL helpers improvements (#98)
+- **Mark Stuart** (@markaddleman) - For fixing SQL file reading support (#91)
 
 ## [0.1.8-alpha] - 2025-08-13
 
