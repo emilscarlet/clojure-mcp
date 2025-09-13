@@ -349,7 +349,7 @@
 (s/def ::parse-nrepl-port boolean?)
 (s/def ::nrepl-args (s/keys :req-un []
                             :opt-un [::port ::host ::config-file ::project-dir ::nrepl-env-type
-                                    ::start-nrepl-cmd ::parse-nrepl-port]))
+                                     ::start-nrepl-cmd ::parse-nrepl-port]))
 
 (def nrepl-client-atom (atom nil))
 
@@ -374,6 +374,108 @@
                          :spec-data (s/explain-data ::nrepl-args opts)})))
       opts)))
 
+(defn ensure-port
+  "Ensures the args map contains a :port key.
+   Throws an exception with helpful context if port is missing.
+   
+   Args:
+   - args: Map that should contain :port
+   
+   Returns: args unchanged if :port exists
+   
+   Throws: ExceptionInfo if :port is missing"
+  [args]
+  (if (:port args)
+    args
+    (throw
+     (ex-info
+      "No nREPL port available - either provide :port or configure auto-start"
+      {:provided-args args}))))
+
+(defn register-components
+  "Registers tools, prompts, and resources with the MCP server, applying config-based filtering.
+   
+   Args:
+   - mcp-server: The MCP server instance to add components to
+   - nrepl-client-map: The nREPL client map containing config
+   - components: Map with :tools, :prompts, and :resources sequences
+   
+   Side effects:
+   - Adds enabled components to the MCP server
+   - Logs debug messages for enabled components
+   
+   Returns: nil"
+  [mcp-server nrepl-client-map {:keys [tools prompts resources]}]
+  ;; Register tools with filtering
+  (doseq [tool tools]
+    (when (config/tool-id-enabled? nrepl-client-map (:id tool))
+      (log/debug "Enabling tool:" (:id tool))
+      (add-tool mcp-server tool)))
+
+  ;; Register resources with filtering
+  (doseq [resource resources]
+    (when (config/resource-name-enabled? nrepl-client-map (:name resource))
+      (log/debug "Enabling resource:" (:name resource))
+      (add-resource mcp-server resource)))
+
+  ;; Register prompts with filtering
+  (doseq [prompt prompts]
+    (when (config/prompt-name-enabled? nrepl-client-map (:name prompt))
+      (log/debug "Enabling prompt:" (:name prompt))
+      (add-prompt mcp-server prompt)))
+  nil)
+
+(defn build-components
+  "Builds tools, prompts, and resources using the provided factory functions.
+   
+   Args:
+   - nrepl-client-atom: Atom containing the nREPL client
+   - working-dir: Working directory path
+   - component-factories: Map with factory functions
+     - :make-tools-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of tools
+     - :make-prompts-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of prompts
+     - :make-resources-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of resources
+   
+   Returns: Map with :tools, :prompts, and :resources sequences"
+  [nrepl-client-atom working-dir {:keys [make-tools-fn
+                                         make-prompts-fn
+                                         make-resources-fn]
+                                  :as component-factories}]
+  {:tools (when make-tools-fn
+            (doall (make-tools-fn nrepl-client-atom working-dir)))
+   :prompts (when make-prompts-fn
+              (doall (make-prompts-fn nrepl-client-atom working-dir)))
+   :resources (when make-resources-fn
+                (doall (make-resources-fn nrepl-client-atom working-dir)))})
+
+(defn setup-mcp-server
+  "Sets up an MCP server by building components, creating the server, and registering components.
+   
+   This function encapsulates the common pattern used by both stdio and SSE transports:
+   1. Build components using factory functions
+   2. Create the MCP server (transport-specific)
+   3. Register components with filtering
+   
+   Args:
+   - nrepl-client-atom: Atom containing the nREPL client map
+   - working-dir: Working directory path
+   - component-factories: Map with factory functions (:make-tools-fn, :make-prompts-fn, :make-resources-fn)
+   - server-thunk: Zero-argument function that creates and returns a map with :mcp-server
+   
+   The server-thunk is called AFTER components are built but BEFORE they are registered,
+   ensuring components are ready for immediate registration once the server starts.
+   
+   Returns: The result map from server-thunk (containing at least :mcp-server)"
+  [nrepl-client-atom working-dir component-factories server-thunk]
+  ;; Build components first to minimize latency
+  (let [components (build-components nrepl-client-atom working-dir component-factories)
+        ;; Create server after components are ready
+        server-result (server-thunk)
+        mcp-server (:mcp-server server-result)]
+    ;; Register components with filtering
+    (register-components mcp-server @nrepl-client-atom components)
+    server-result))
+
 (defn build-and-start-mcp-server-impl
   "Internal implementation of MCP server startup.
    
@@ -392,7 +494,7 @@
      - :host (optional) - nREPL server host (defaults to localhost)
      - :project-dir (optional) - Root directory for the project (must exist)
    
-   - config: Map with factory functions
+   - component-factories: Map with factory functions
      - :make-tools-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of tools
      - :make-prompts-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of prompts  
      - :make-resources-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of resources
@@ -404,9 +506,7 @@
    - Starts the MCP server on stdio
    
    Returns: nil"
-  [nrepl-args {:keys [make-tools-fn
-                      make-prompts-fn
-                      make-resources-fn]}]
+  [nrepl-args component-factories]
   ;; the nrepl-args are a map with :port and optional :host
   ;; Note: validation should be done by caller
   (let [_ (assert (:port nrepl-args) "Port must be provided for build-and-start-mcp-server-impl")
@@ -417,25 +517,13 @@
                                     (assoc nrepl-client-map :nrepl-process process)
                                     nrepl-client-map)
         _ (reset! nrepl-client-atom nrepl-client-with-process)
-        resources (when make-resources-fn
-                    (doall (make-resources-fn nrepl-client-atom working-dir)))
-        tools (when make-tools-fn
-                (doall (make-tools-fn nrepl-client-atom working-dir)))
-        prompts (when make-prompts-fn
-                  (doall (make-prompts-fn nrepl-client-atom working-dir)))
-        mcp (mcp-server)]
-    (doseq [tool tools]
-      (when (config/tool-id-enabled? nrepl-client-map (:id tool))
-        (log/debug "Enabling tool:" (:id tool))
-        (add-tool mcp tool)))
-    (doseq [resource resources]
-      (when (config/resource-name-enabled? nrepl-client-map (:name resource))
-        (log/debug "Enabling resource:" (:name resource))
-        (add-resource mcp resource)))
-    (doseq [prompt prompts]
-      (when (config/prompt-name-enabled? nrepl-client-map (:name prompt))
-        (log/debug "Enabling prompt:" (:name prompt))
-        (add-prompt mcp prompt)))
+        ;; Setup MCP server with stdio transport
+        server-result (setup-mcp-server nrepl-client-atom
+                                        working-dir
+                                        component-factories
+                                        ;; stdio server creation thunk returns map
+                                        (fn [] {:mcp-server (mcp-server)}))
+        mcp (:mcp-server server-result)]
     (swap! nrepl-client-atom assoc :mcp-server mcp)
     nil))
 
@@ -460,22 +548,19 @@
      - :start-nrepl-cmd (optional) - Command to start nREPL server
      - :parse-nrepl-port (optional) - Parse port from command output (default true)
    
-   - config: Map with factory functions (same as
-     build-and-start-mcp-server-impl)
+   - component-factories: Map with factory functions
+     - :make-tools-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of tools
+     - :make-prompts-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of prompts  
+     - :make-resources-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of resources
    
    Auto-start conditions (must satisfy ONE):
    1. Both :start-nrepl-cmd AND :project-dir provided in nrepl-args
    2. Current directory contains .clojure-mcp/config.edn with :start-nrepl-cmd
    
    Returns: nil"
-  [nrepl-args config]
-  (let [validated-args (validate-options nrepl-args)
-        args-with-port (nrepl-launcher/maybe-start-nrepl-process
-                        validated-args)]
-    ;; Ensure we have a port after auto-start or validation
-    (when-not (:port args-with-port)
-      (throw
-       (ex-info
-        "No nREPL port available - either provide :port or configure auto-start"
-        {:provided-args nrepl-args})))
-    (build-and-start-mcp-server-impl args-with-port config)))
+  [nrepl-args component-factories]
+  (-> nrepl-args
+      validate-options
+      nrepl-launcher/maybe-start-nrepl-process
+      ensure-port
+      (build-and-start-mcp-server-impl component-factories)))

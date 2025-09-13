@@ -3,6 +3,7 @@
    [clojure-mcp.main :as main]
    [clojure-mcp.core :as core]
    [clojure-mcp.config :as config]
+   [clojure-mcp.nrepl-launcher :as nrepl-launcher]
    [clojure.tools.logging :as log])
   (:import
    [io.modelcontextprotocol.server.transport
@@ -52,19 +53,19 @@
     (println (str "Clojure tooling SSE MCP server started on port " port "."))
     (.join server)))
 
-(defn build-and-start-mcp-server
-  "Builds and starts an MCP server with SSE (Server-Sent Events) transport.
+(defn build-and-start-mcp-server-impl
+  "Internal implementation of MCP server with SSE transport.
    
-   Similar to core/build-and-start-mcp-server but uses SSE transport instead
-   of stdio, allowing web-based clients to connect over HTTP.
+   Similar to core/build-and-start-mcp-server-impl but uses SSE transport
+   instead of stdio, allowing web-based clients to connect over HTTP.
    
    Args:
-   - args: Map with connection and server settings
+   - nrepl-args: Map with connection settings
      - :port (required) - nREPL server port
      - :host (optional) - nREPL server host (defaults to localhost)
      - :mcp-sse-port (optional) - HTTP port for SSE server (defaults to 8078)
    
-   - config: Map with factory functions
+   - component-factories: Map with factory functions
      - :make-tools-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of tools
      - :make-prompts-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of prompts  
      - :make-resources-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of resources
@@ -77,34 +78,61 @@
    - Starts a Jetty HTTP server on the specified port
    
    Returns: nil"
-  [args {:keys [make-tools-fn
-                make-resources-fn
-                make-prompts-fn]}]
-  ;; the args are a map with :port :host
-  ;; we also need an :mcp-sse-port so we'll default to 8078??
-  (let [mcp-port (:mcp-sse-port args 8078)
-        nrepl-client-map (core/create-and-start-nrepl-connection args)
+  [nrepl-args component-factories]
+  ;; Note: validation should be done by caller
+  (let [_ (assert (:port nrepl-args) "Port must be provided for build-and-start-mcp-server-impl")
+        mcp-port (:mcp-sse-port nrepl-args 8078)
+        nrepl-client-map (core/create-and-start-nrepl-connection nrepl-args)
         working-dir (config/get-nrepl-user-dir nrepl-client-map)
-        _ (reset! core/nrepl-client-atom nrepl-client-map)
-        resources (when make-resources-fn
-                    (doall (make-resources-fn
-                            core/nrepl-client-atom working-dir)))
-        tools (when make-tools-fn
-                (doall (make-tools-fn
-                        core/nrepl-client-atom working-dir)))
-        prompts (when make-prompts-fn
-                  (doall (make-prompts-fn
-                          core/nrepl-client-atom working-dir)))
-        {:keys [mcp-server provider-servlet]} (mcp-sse-server)]
-    (doseq [tool tools]
-      (core/add-tool mcp-server tool))
-    (doseq [resource resources]
-      (core/add-resource mcp-server resource))
-    (doseq [prompt prompts]
-      (core/add-prompt mcp-server prompt))
+        ;; Store nREPL process (if auto-started) in client map for cleanup
+        nrepl-client-with-process (if-let [process (:nrepl-process nrepl-args)]
+                                    (assoc nrepl-client-map :nrepl-process process)
+                                    nrepl-client-map)
+        _ (reset! core/nrepl-client-atom nrepl-client-with-process)
+        {:keys [mcp-server provider-servlet]}
+        (core/setup-mcp-server core/nrepl-client-atom working-dir component-factories mcp-sse-server)]
     ;; hold onto this so you can shut it down if necessary
     (swap! core/nrepl-client-atom assoc :mcp-server mcp-server)
+    ;; Start the HTTP server with the servlet
     (host-mcp-servlet provider-servlet mcp-port)
     nil))
+
+(defn build-and-start-mcp-server
+  "Builds and starts an MCP server with SSE transport and optional automatic nREPL startup.
+   
+   This function wraps build-and-start-mcp-server-impl with nREPL auto-start capability.
+   
+   If auto-start conditions are met (see nrepl-launcher/should-start-nrepl?), it will:
+   1. Start an nREPL server process using :start-nrepl-cmd
+   2. Parse the port from process output (if :parse-nrepl-port is true)
+   3. Pass the discovered port to the main MCP server setup
+   
+   Otherwise, it requires a :port parameter.
+   
+   Args:
+   - nrepl-args: Map with connection settings and optional nREPL start configuration
+     - :port (required if not auto-starting) - nREPL server port
+     - :host (optional) - nREPL server host (defaults to localhost)
+     - :mcp-sse-port (optional) - HTTP port for SSE server (defaults to 8078)
+     - :project-dir (optional) - Root directory for the project
+     - :start-nrepl-cmd (optional) - Command to start nREPL server
+     - :parse-nrepl-port (optional) - Parse port from command output (default true)
+   
+   - component-factories: Map with factory functions
+     - :make-tools-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of tools
+     - :make-prompts-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of prompts  
+     - :make-resources-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of resources
+   
+   Auto-start conditions (must satisfy ONE):
+   1. Both :start-nrepl-cmd AND :project-dir provided in nrepl-args
+   2. Current directory contains .clojure-mcp/config.edn with :start-nrepl-cmd
+   
+   Returns: nil"
+  [nrepl-args component-factories]
+  (-> nrepl-args
+      core/validate-options
+      nrepl-launcher/maybe-start-nrepl-process
+      core/ensure-port
+      (build-and-start-mcp-server-impl component-factories)))
 
 
