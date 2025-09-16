@@ -262,6 +262,8 @@
    [:cljfmt {:optional true} :boolean]
    [:bash-over-nrepl {:optional true} :boolean]
    [:nrepl-env-type {:optional true} [:enum :clj :bb :basilisp :scittle]]
+   [:start-nrepl-cmd {:optional true} [:sequential NonBlankString]]
+   [:parse-nrepl-port {:optional true} :boolean]
 
    ;; Scratch pad configuration
    [:scratch-pad-load {:optional true} :boolean]
