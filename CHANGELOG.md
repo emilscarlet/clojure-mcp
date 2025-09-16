@@ -22,6 +22,7 @@ All this and much much more!
   - Provides user-level default configuration across all projects
   - Project-level `.clojure-mcp/config.edn` takes precedence over home directory config
   - Supports merging of configurations with proper precedence
+- **Configuration Validation**: Malli based configuration validation to help with configuration errors
 - **Agent Tool Builder System**: Dynamic agent creation from configurations
   - Configuration-based agent definitions via `:agents` in `.clojure-mcp/config.edn`
   - Tool-specific configurations merge with default agents via `:tools-config`
