@@ -67,12 +67,12 @@
   (when process
     ;; Add shutdown hook
     (try
-      (.addShutdownHook 
+      (.addShutdownHook
        (Runtime/getRuntime)
        (Thread. #(destroy-nrepl-process process)))
       (log/debug "Added shutdown hook for nREPL process cleanup")
       (catch Exception e
-        (log/warn e "Failed to add shutdown hook for process cleanup")))   
+        (log/warn e "Failed to add shutdown hook for process cleanup")))
     process))
 
 (defn wait-for-port
@@ -199,13 +199,13 @@
       (do
         (log/debug "Port already provided without start command, skipping auto-start")
         false)
-      
+
       ;; CLI condition: start-nrepl-cmd AND project-dir provided (regardless of port)
       (and start-nrepl-cmd project-dir)
       (do
         (log/info "Auto-start condition met: CLI args provided")
         true)
-      
+
       ;; Config file condition
       :else
       (if-let [config (load-config-if-exists project-dir)]
@@ -216,33 +216,39 @@
           false)
         false))))
 
+(defn add-project-dir [nrepl-args]
+  (if (:start-nrepl-cmd nrepl-args)
+    (assoc nrepl-args :project-dir (System/getProperty "user.dir"))
+    nrepl-args))
+
 (defn maybe-start-nrepl-process
   "Main wrapper that conditionally starts an nREPL process.
    Returns updated nrepl-args with discovered :port if process was started,
    otherwise returns nrepl-args unchanged."
   [nrepl-args]
-  (if (should-start-nrepl? nrepl-args)
-    (let [;; Load config and merge with CLI args (CLI takes precedence)
-          config (load-config-if-exists (:project-dir nrepl-args))
-          merged-args (merge config nrepl-args)
-          {:keys [start-nrepl-cmd parse-nrepl-port port]
-           :or {parse-nrepl-port true}} merged-args]
+  (let [nrepl-args' (add-project-dir nrepl-args)]
+    (if (should-start-nrepl? nrepl-args')
+      (let [;; Load config and merge with CLI args (CLI takes precedence)
+            config (load-config-if-exists (:project-dir nrepl-args'))
+            merged-args (merge config nrepl-args')
+            {:keys [start-nrepl-cmd parse-nrepl-port port]
+             :or {parse-nrepl-port true}} merged-args]
       ;; Validate: if parse-nrepl-port is false, port must be provided
-      (when (and (false? parse-nrepl-port) (not port))
-        (throw
-         (ex-info "When :parse-nrepl-port is false, :port must be provided"
-                  {:start-nrepl-cmd  start-nrepl-cmd
-                   :parse-nrepl-port parse-nrepl-port})))
-      (log/info "Starting nREPL process automatically")
-      (let [{:keys [port process]} (start-nrepl-process merged-args)]
-        (if port
-          (do
-            (log/info (str "Using discovered port: " port))
-            (assoc nrepl-args :port port :nrepl-process process))
+        (when (and (false? parse-nrepl-port) (not port))
+          (throw
+           (ex-info "When :parse-nrepl-port is false, :port must be provided"
+                    {:start-nrepl-cmd  start-nrepl-cmd
+                     :parse-nrepl-port parse-nrepl-port})))
+        (log/info "Starting nREPL process automatically")
+        (let [{:keys [port process]} (start-nrepl-process merged-args)]
+          (if port
+            (do
+              (log/info (str "Using discovered port: " port))
+              (assoc nrepl-args :port port :nrepl-process process))
           ;; If parse-nrepl-port was false, we still started the process
           ;; but didn't get a port - this is an error for our use case
-          (throw (ex-info "nREPL process started but no port available"
-                          {:start-nrepl-cmd start-nrepl-cmd})))))
-    (do
-      (log/debug "Auto-start conditions not met, using existing behavior")
-      nrepl-args)))
+            (throw (ex-info "nREPL process started but no port available"
+                            {:start-nrepl-cmd start-nrepl-cmd})))))
+      (do
+        (log/debug "Auto-start conditions not met, using existing behavior")
+        nrepl-args))))
