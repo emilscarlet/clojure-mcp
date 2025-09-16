@@ -217,7 +217,7 @@
         false))))
 
 (defn add-project-dir [nrepl-args]
-  (if (:start-nrepl-cmd nrepl-args)
+  (if (and (:start-nrepl-cmd nrepl-args) (not (:project-dir nrepl-args)))
     (assoc nrepl-args :project-dir (System/getProperty "user.dir"))
     nrepl-args))
 
