@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] - 0.1.9-alpha
+## [0.1.9-alpha] - 2025-9-16
 
 ### Major Refactoring: Configuration-Based Agent Tools
 
