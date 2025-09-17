@@ -54,10 +54,11 @@
     (testing "returns false for empty args"
       (is (not (launcher/should-start-nrepl? {}))))
 
-    (testing "allows auto-start when both start-nrepl-cmd and port provided"
-      (is (launcher/should-start-nrepl? {:start-nrepl-cmd ["lein" "repl" ":headless"]
-                                         :project-dir     "/tmp/test"
-                                         :port            7888})))
+    (testing "does not auto-start when both start-nrepl-cmd and port and parse-nrepl-port provided"
+      (is (not (launcher/should-start-nrepl? {:start-nrepl-cmd ["lein" "repl" ":headless"]
+                                              :project-dir     "/tmp/test"
+                                              :port            7888
+                                              :parse-nrepl-port true}))))
 
     (testing "works with vector format for start-nrepl-cmd"
       (is (launcher/should-start-nrepl? {:start-nrepl-cmd ["lein" "repl" ":headless"]
@@ -96,8 +97,8 @@
       (let [args {:host "localhost"}]
         (is (= args (launcher/maybe-start-nrepl-process args)))))
 
-    (testing "returns unchanged args when port already provided"
-      (let [args {:port 7888 :start-nrepl-cmd ["lein" "repl"]}]
+    (testing "returns unchanged args when port already provided with parse-nrepl-port"
+      (let [args {:parse-nrepl-port true :port 7888 :start-nrepl-cmd ["lein" "repl"]}]
         (is (= args (launcher/maybe-start-nrepl-process args)))))
 
     ;; Note: Testing actual process startup would require integration tests

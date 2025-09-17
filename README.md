@@ -933,7 +933,7 @@ For a quick start: **[Creating Your Own Custom MCP Server](doc/custom-mcp-server
 Using the -X invocation requires EDN values.
 
 #### `:port`
-**Optional** - The nREPL server port to connect to. Required unless using `:start-nrepl-cmd` with `:parse-nrepl-port` or relying on an existing `.nrepl-port` file.
+**Optional** - The nREPL server port to connect to. **Required** unless using `:start-nrepl-cmd` with `:parse-nrepl-port`
 
 `:port 7888`
 
@@ -995,9 +995,6 @@ clojure -X:mcp :port 7888 :host '"0.0.0.0"' :project-dir '"/path/to/project"'
 
 # Using a custom config file
 clojure -X:mcp :port 7888 :config-file '"/path/to/custom-config.edn"'
-
-# Using existing .nrepl-port file (no explicit port needed)
-clojure -X:mcp
 
 # Specifying Babashka environment
 clojure -X:mcp :port 7888 :nrepl-env-type :bb

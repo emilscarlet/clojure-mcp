@@ -189,15 +189,23 @@
 
 (defn should-start-nrepl?
   "Determine if we should auto-start an nREPL server based on conditions:
+   Providing a :port with :start-nrepl-cmd works
+   Providing a :parse-nrepl-port with :start-nrepl-cmd works
+   Providing a :port AND :parse-nrepl-port with an :start-nrepl-cmd does not work
    1. CLI: Both :start-nrepl-cmd AND :project-dir provided in args
    2. Config: .clojure-mcp/config.edn exists with :start-nrepl-cmd"
   [nrepl-args]
-  (let [{:keys [start-nrepl-cmd project-dir port]} nrepl-args]
+  (let [{:keys [start-nrepl-cmd project-dir parse-nrepl-port port]} nrepl-args]
     (cond
       ;; Don't start if port provided but no start command (existing behavior)
       (and port (not start-nrepl-cmd))
       (do
         (log/debug "Port already provided without start command, skipping auto-start")
+        false)
+
+      (and port start-nrepl-cmd parse-nrepl-port) ;; makes no sense to provide this on the command line
+      (do
+        (log/debug ":port and :parse-nrepl-port both provided with nrepl start command, skipping auto-start")
         false)
 
       ;; CLI condition: start-nrepl-cmd AND project-dir provided (regardless of port)
@@ -209,17 +217,30 @@
       ;; Config file condition
       :else
       (if-let [config (load-config-if-exists project-dir)]
-        (if (:start-nrepl-cmd config)
+        (cond
+          ;; To me providing a port along with parse-nrepl-port indicates that command line args are overriding the config.edn
+          ;; this way you can have startup commands in config.edn and yet
+          ;; still easily override them on the cli...  This is overly complex of course.
+          (and port (:start-nrepl-cmd config) (:parse-nrepl-port config))
+          (do
+            (log/debug ":port and :parse-nrepl-port both provided with nrepl start command, skipping auto-start")
+            false)
+
+          (:start-nrepl-cmd config)
           (do
             (log/info "Auto-start condition met: config file with :start-nrepl-cmd")
             true)
-          false)
+
+          :else false)
         false))))
 
-(defn add-project-dir [nrepl-args]
-  (if (and (:start-nrepl-cmd nrepl-args) (not (:project-dir nrepl-args)))
+(defn add-project-dir [{:keys [start-nrepl-cmd project-dir parse-nrepl-port port] :as nrepl-args}]
+  (cond
+    ;; if a port is provided the intent is not clear here
+    (and parse-nrepl-port start-nrepl-cmd port) nrepl-args
+    (and start-nrepl-cmd (not project-dir))
     (assoc nrepl-args :project-dir (System/getProperty "user.dir"))
-    nrepl-args))
+    :else nrepl-args))
 
 (defn maybe-start-nrepl-process
   "Main wrapper that conditionally starts an nREPL process.
