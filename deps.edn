@@ -74,7 +74,11 @@
    :extra-paths ["dev" "test"]
    :exec-fn clojure-mcp.main/start-mcp-server
    ;; it needs an nrepl port to talk to
-   :exec-args {:port 7888}}
+   :exec-args {:port 7888
+               ;; test auto starting the repl
+               ;; :start-nrepl-cmd ["clojure" "-M:nrepl"]
+               ;; :parse-nrepl-port true
+               }}
 
   ;; DEV setup needs logback.xml
   :dev-mcp-figwheel
