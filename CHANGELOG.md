@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.10-alpha] - 2025-09-19
+
 ### Simplified nREPL Auto-Start 🚀
 
 **Launching an nREPL server is now incredibly simple!** Just provide `:start-nrepl-cmd` and the MCP server handles everything else - perfect for Claude Code and other CLI-based AI tools.
