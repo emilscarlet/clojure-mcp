@@ -8,24 +8,24 @@
   (testing "parse-port-from-output"
     (testing "extracts port from common nREPL output formats"
       (are [output expected] (= expected (launcher/parse-port-from-output output))
-        "nREPL server started on port 12345 on host localhost - nrepl://localhost:12345"  12345
-        "Started nREPL server on port 7888"                                              7888
-        "nREPL server listening on port 50123"                                           50123
-        "Started on port 9999"                                                           9999
-        "Listening on port 8080"                                                         8080
-        "port: 12345"                                                                    12345
-        "port 7888"                                                                      7888
-        "server started on :12345"                                                       12345
-        ":7888"                                                                          7888))
+        "nREPL server started on port 12345 on host localhost - nrepl://localhost:12345" 12345
+        "Started nREPL server on port 7888" 7888
+        "nREPL server listening on port 50123" 50123
+        "Started on port 9999" 9999
+        "Listening on port 8080" 8080
+        "port: 12345" 12345
+        "port 7888" 7888
+        "server started on :12345" 12345
+        ":7888" 7888))
 
     (testing "returns nil for invalid inputs"
       (are [output] (nil? (launcher/parse-port-from-output output))
         nil
         ""
         "no port here"
-        "port abc"  ; non-numeric
-        "port 123"  ; too small (below 1024)
-        "port 999999"  ; too large (above 65535)
+        "port abc" ; non-numeric
+        "port 123" ; too small (below 1024)
+        "port 999999" ; too large (above 65535)
         "random text"))
 
     (testing "handles case insensitive matching"
@@ -37,15 +37,18 @@
 (deftest should-start-nrepl-test
   ;; Test the conditions for auto-starting nREPL
   (testing "should-start-nrepl?"
-    (testing "returns false when port already provided"
+    (testing "returns false when port already provided without start command"
       (is (not (launcher/should-start-nrepl?
-                {:port 7888})))
-      (is (not (launcher/should-start-nrepl?
-                {:port 7888 :start-nrepl-cmd ["lein" "repl"]}))))
+                {:port 7888}))))
 
     (testing "returns true for CLI condition: both start-nrepl-cmd and project-dir"
       (is (launcher/should-start-nrepl? {:start-nrepl-cmd ["lein" "repl" ":headless"]
-                                         :project-dir     "/tmp/test"})))
+                                         :project-dir "/tmp/test"})))
+
+    (testing "returns true even when port provided with start-nrepl-cmd (uses fixed port)"
+      (is (launcher/should-start-nrepl? {:start-nrepl-cmd ["lein" "repl" ":headless"]
+                                         :project-dir "/tmp/test"
+                                         :port 7888})))
 
     (testing "returns false when only one CLI parameter provided"
       (is (not (launcher/should-start-nrepl? {:start-nrepl-cmd ["lein" "repl"]})))
@@ -54,15 +57,9 @@
     (testing "returns false for empty args"
       (is (not (launcher/should-start-nrepl? {}))))
 
-    (testing "does not auto-start when both start-nrepl-cmd and port and parse-nrepl-port provided"
-      (is (not (launcher/should-start-nrepl? {:start-nrepl-cmd ["lein" "repl" ":headless"]
-                                              :project-dir     "/tmp/test"
-                                              :port            7888
-                                              :parse-nrepl-port true}))))
-
     (testing "works with vector format for start-nrepl-cmd"
       (is (launcher/should-start-nrepl? {:start-nrepl-cmd ["lein" "repl" ":headless"]
-                                         :project-dir     "/tmp/test"})))
+                                         :project-dir "/tmp/test"})))
 
     (testing "returns false when only port provided (no start command)"
       (is (not (launcher/should-start-nrepl? {:port 7888}))))))
@@ -78,11 +75,11 @@
     (testing "loads config when file exists"
       (try
         (.mkdir config-dir)
-        (spit config-file "{:start-nrepl-cmd [\"lein\" \"repl\" \":headless\"] :parse-nrepl-port true}")
+        (spit config-file "{:start-nrepl-cmd [\"lein\" \"repl\" \":headless\"] :port 7888}")
 
         (let [config (launcher/load-config-if-exists (.getPath temp-dir))]
           (is (= ["lein" "repl" ":headless"] (:start-nrepl-cmd config)))
-          (is (true? (:parse-nrepl-port config))))
+          (is (= 7888 (:port config))))
 
         (finally
             ;; Cleanup
@@ -97,48 +94,14 @@
       (let [args {:host "localhost"}]
         (is (= args (launcher/maybe-start-nrepl-process args)))))
 
-    (testing "returns unchanged args when port already provided with parse-nrepl-port"
-      (let [args {:parse-nrepl-port true :port 7888 :start-nrepl-cmd ["lein" "repl"]}]
+    (testing "returns unchanged args when port provided without start command"
+      (let [args {:port 7888}]
         (is (= args (launcher/maybe-start-nrepl-process args)))))
 
     ;; Note: Testing actual process startup would require integration tests
     ;; with real nREPL commands, which is beyond unit test scope.
     ;; Integration tests would verify the full process startup flow.
     ))
-
-(deftest validation-test
-  ;; Test validation logic for parse-nrepl-port and port requirements
-  (testing "validation when parse-nrepl-port is false"
-    (testing "throws error when parse-nrepl-port is false but port not provided"
-      (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo
-           #"When :parse-nrepl-port is false, :port must be provided"
-           (launcher/maybe-start-nrepl-process
-            {:start-nrepl-cmd  ["lein" "repl" ":headless"]
-             :project-dir      "/tmp/test"
-             :parse-nrepl-port false}))))
-
-    (testing "does not throw when parse-nrepl-port is false and port is provided"
-      ;; This would normally try to start a process, but since we're just
-      ;; testing validation, we can't easily mock the process startup in unit
-      ;; tests We'll test that it doesn't throw the validation error at least
-      (let [args {:start-nrepl-cmd ["echo" "test"]  ; Use a safe command
-                  :project-dir "/tmp"
-                  :parse-nrepl-port false
-                  :port 7888}]
-        ;; The function would try to start the process, but at least 
-        ;; it won't fail on the validation step
-        (is (not (nil? args)))))
-
-    (testing "accepts vector format for start-nrepl-cmd with validation"
-      (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo
-           #"When :parse-nrepl-port is false, :port must be provided"
-           (launcher/maybe-start-nrepl-process
-            {:start-nrepl-cmd  ["lein" "repl" ":headless"]
-             :project-dir      "/tmp/test"
-             :parse-nrepl-port false}))))))
-
 (deftest process-cleanup-test
   ;; Test process cleanup functionality
   (testing "destroy-nrepl-process"
@@ -161,7 +124,7 @@
                              (reset! destroy-called true))
                            (waitFor [timeout unit]
                              (reset! wait-for-called true)
-                             true))]  ; Returns true - process terminated
+                             true))] ; Returns true - process terminated
         (launcher/destroy-nrepl-process mock-process)
         (is @destroy-called "destroy should be called")
         (is @wait-for-called "waitFor should be called")))
@@ -177,12 +140,12 @@
                              (reset! destroy-called true))
                            (destroyForcibly []
                              (reset! destroy-forcibly-called true)
-                             this)  ; Return self as Process does
+                             this) ; Return self as Process does
                            (waitFor [timeout unit]
                              (swap! wait-for-count inc)
                              (if (= 1 @wait-for-count)
-                               false  ; First call returns false (timeout)
-                               true)))]  ; Second call returns true
+                               false ; First call returns false (timeout)
+                               true)))] ; Second call returns true
         (launcher/destroy-nrepl-process mock-process)
         (is @destroy-called "destroy should be called for graceful termination")
         (is @destroy-forcibly-called "destroyForcibly should be called after timeout")

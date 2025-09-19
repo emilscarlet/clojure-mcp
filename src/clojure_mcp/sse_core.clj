@@ -104,7 +104,7 @@
    
    If auto-start conditions are met (see nrepl-launcher/should-start-nrepl?), it will:
    1. Start an nREPL server process using :start-nrepl-cmd
-   2. Parse the port from process output (if :parse-nrepl-port is true)
+   2. Parse the port from process output (if no :port provided)
    3. Pass the discovered port to the main MCP server setup
    
    Otherwise, it requires a :port parameter.
@@ -112,11 +112,11 @@
    Args:
    - nrepl-args: Map with connection settings and optional nREPL start configuration
      - :port (required if not auto-starting) - nREPL server port
+       When provided with :start-nrepl-cmd, uses fixed port instead of parsing
      - :host (optional) - nREPL server host (defaults to localhost)
      - :mcp-sse-port (optional) - HTTP port for SSE server (defaults to 8078)
      - :project-dir (optional) - Root directory for the project
      - :start-nrepl-cmd (optional) - Command to start nREPL server
-     - :parse-nrepl-port (optional) - Parse port from command output (default true)
    
    - component-factories: Map with factory functions
      - :make-tools-fn - (fn [nrepl-client-atom working-dir] ...) returns seq of tools

@@ -44,6 +44,12 @@ The timestamp tracking system prevents accidental overwrites when files are modi
 
 **Important**: This feature requires the MCP server to be launched from your project directory (where your `deps.edn` or `project.clj` is located). The nREPL server will be started in the current working directory. This makes it ideal for use with Claude Code and other command-line LLM clients where you want automatic nREPL startup - you can simply start Claude Code in your project directory and the nREPL will launch automatically.
 
+**Note for Claude Desktop users**: Claude Desktop does not start MCP servers from your project directory, so `:start-nrepl-cmd` in your config file will not work by itself. You must also configure the `:project-dir` argument in Claude Desktop's settings to point to your specific project. This limitation does not affect Claude Code or other CLI-based tools that you run from your project directory.
+
+**Behavior:**
+- When used without `:port`, the MCP server will automatically parse the port from the command's output
+- When used with `:port`, it will use that fixed port instead of parsing from output
+
 **Available values:**
 - `["lein" "repl" ":headless"]` - Start Leiningen REPL in headless mode
 - `["clojure" "-M:nrepl"]` - Start Clojure with nREPL alias
@@ -53,19 +59,6 @@ The timestamp tracking system prevents accidental overwrites when files are modi
 - With Claude Code or other CLI-based LLM tools launched from your project directory
 - When you want automatic nREPL server management without separate terminal windows
 - In CI/CD environments where automatic startup is beneficial
-
-### `:parse-nrepl-port`
-**Optional** - When `true` and used with `:start-nrepl-cmd`, automatically discovers the nREPL port from the command's stdout output. Defaults to `true` when `:start-nrepl-cmd` is provided. The parser recognizes common nREPL port announcement formats.
-
-**Available values:**
-- `true` (default when `:start-nrepl-cmd` is provided) - Parse port from nREPL output
-- `false` - Don't parse port; requires `:port` to be explicitly provided
-
-**When to use:**
-- `true` - When the nREPL server announces its port in stdout (most common case)
-- `false` - When using a fixed port configuration or when port is known in advance
-
-**Note:** When `:parse-nrepl-port` is `false`, you must provide the `:port` configuration.
 
 ### `:emacs-notify`
 Boolean flag to enable Emacs integration notifications.

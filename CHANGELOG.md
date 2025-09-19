@@ -1,5 +1,71 @@
 # Changelog
 
+## [Unreleased]
+
+### Simplified nREPL Auto-Start 🚀
+
+**Launching an nREPL server is now incredibly simple!** Just provide `:start-nrepl-cmd` and the MCP server handles everything else - perfect for Claude Code and other CLI-based AI tools.
+
+#### Quick Start Examples
+
+**From your project directory**, just run:
+
+```bash
+# For Leiningen projects
+clojure -X:mcp :start-nrepl-cmd '["lein" "repl" ":headless"]'
+
+# For deps.edn projects  
+clojure -X:mcp :start-nrepl-cmd '["clojure" "-M:nrepl"]'
+
+# For Babashka scripts
+clojure -X:mcp :start-nrepl-cmd '["bb" "nrepl-server"]'
+```
+
+That's it! The MCP server will:
+- Start your nREPL server automatically
+- Discover the port from the output
+- Connect and manage the process lifecycle
+- Clean up when you're done
+
+#### Perfect for Claude Code
+
+This feature is especially valuable for **Claude Code** users who want to start coding immediately without managing separate terminal windows:
+
+1. Open Claude Code in your Clojure project directory
+2. The nREPL starts automatically when Claude connects
+3. Start coding with full REPL support!
+
+You can also configure this in `.clojure-mcp/config.edn`:
+```edn
+{:start-nrepl-cmd ["clojure" "-M:nrepl"]}
+```
+
+#### Note for Claude Desktop Users
+
+**Important**: Claude Desktop does not start MCP servers from your project directory, so `:start-nrepl-cmd` will not work unless you also provide `:project-dir` pointing to your specific project:
+
+```bash
+# For Claude Desktop, you must specify the project directory:
+clojure -X:mcp :start-nrepl-cmd '["lein" "repl" ":headless"]' :project-dir '"/path/to/your/clojure/project"'
+```
+
+This limitation does not affect Claude Code or other CLI-based tools that you run directly from your project directory.
+
+#### Using a Fixed Port
+
+If you prefer a specific port, just add it:
+```bash
+clojure -X:mcp :start-nrepl-cmd '["lein" "repl" ":headless"]' :port 7888
+```
+
+### Breaking Changes
+- **Removed `:parse-nrepl-port`**: This confusing option has been eliminated. The MCP server now intelligently determines whether to parse the port based on whether `:port` is provided. Simple!
+
+### Migration Note
+If you were using `:parse-nrepl-port`, just remove it:
+- Old: `:start-nrepl-cmd ["..."] :parse-nrepl-port true` 
+- New: `:start-nrepl-cmd ["..."]`
+
 ## [0.1.9-alpha] - 2025-9-16
 
 ### Major Refactoring: Configuration-Based Agent Tools

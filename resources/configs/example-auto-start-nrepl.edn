@@ -9,12 +9,8 @@
  ;; Must be a vector of strings representing the command and arguments
  :start-nrepl-cmd ["clojure" "-M:nrepl"]
 
- ;; Parse the port from nREPL output (default: true when :start-nrepl-cmd is provided)
- ;; Set to false if you want to use a fixed port specified below
- :parse-nrepl-port true
-
- ;; Port is optional when :parse-nrepl-port is true
- ;; Required when :parse-nrepl-port is false
+ ;; Port is optional - if not provided, MCP will parse it from nREPL output
+ ;; Provide :port if you want to use a fixed port instead of parsing
  ;; :port 7888
 
  ;; Other common configurations
@@ -26,16 +22,13 @@
 ;; Alternative configurations:
 
 ;; For Leiningen projects (great for Claude Code):
-;; {:start-nrepl-cmd ["lein" "repl" ":headless"]
-;;  :parse-nrepl-port true}
+;; {:start-nrepl-cmd ["lein" "repl" ":headless"]}
 
 ;; For Babashka:
-;; {:start-nrepl-cmd ["bb" "nrepl-server"]
-;;  :parse-nrepl-port true}
+;; {:start-nrepl-cmd ["bb" "nrepl-server"]}
 
 ;; With fixed port (no port parsing):
 ;; {:start-nrepl-cmd ["clojure" "-M:nrepl"]
-;;  :parse-nrepl-port false
 ;;  :port 7888}
 
 ;; Claude Code usage:

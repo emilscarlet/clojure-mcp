@@ -15,18 +15,18 @@
    Returns the port number as an integer or nil if not found."
   [output]
   (when output
-    (let [patterns [#"(?i)nrepl.*?port[^\d]*(\d+)"  ; nREPL server started on port 12345
-                    #"(?i)port[^\d]*(\d+)"           ; port 12345, port: 12345
-                    #":(\d{4,5})\b"                  ; :12345 (4-5 digit ports)
-                    #"Started.*?(\d{4,5})\b"         ; Started on 12345
-                    #"Listening.*?(\d{4,5})\b"]      ; Listening on 12345
+    (let [patterns [#"(?i)nrepl.*?port[^\d]*(\d+)" ; nREPL server started on port 12345
+                    #"(?i)port[^\d]*(\d+)" ; port 12345, port: 12345
+                    #":(\d{4,5})\b" ; :12345 (4-5 digit ports)
+                    #"Started.*?(\d{4,5})\b" ; Started on 12345
+                    #"Listening.*?(\d{4,5})\b"] ; Listening on 12345
           line (str/trim output)]
       (some (fn [pattern]
               (when-let [match (re-find pattern line)]
                 (when-let [port-str (second match)]
                   (try
                     (let [port (Integer/parseInt port-str)]
-                      (when (<= 1024 port 65535)  ; Valid port range
+                      (when (<= 1024 port 65535) ; Valid port range
                         port))
                     (catch NumberFormatException _ nil)))))
             patterns))))
@@ -130,22 +130,20 @@
 
 (defn start-nrepl-process
   "Start an nREPL server process using the provided command.
-   Returns a map with :port (if discovered or provided) and :process."
-  [{:keys [start-nrepl-cmd project-dir parse-nrepl-port port]
-    :or {parse-nrepl-port true}}]
+   Returns a map with :port (if discovered or provided) and :process.
+   If :port is provided, uses it. Otherwise, parses port from output."
+  [{:keys [start-nrepl-cmd project-dir port]}]
   (log/info (str "Starting nREPL with command: " start-nrepl-cmd))
   (log/info (str "Working directory: " project-dir))
   (try
     (let [pb-opts (cond-> {}
                     project-dir (assoc :dir (io/file project-dir)))
           process (apply process/start pb-opts start-nrepl-cmd)
-          ;; Handle port discovery vs provided port
-          discovered-port (if (and (not port) parse-nrepl-port)
-                            ;; Only try to discover if port not provided and parsing enabled
-                            (wait-for-port process 30000 parse-nrepl-port)
-                            ;; Use provided port or skip discovery
-                            port)]
-      (if (and parse-nrepl-port (not discovered-port))
+          ;; If port not provided, parse from output. Otherwise use provided port.
+          discovered-port (if port
+                            port ;; Use provided port
+                            (wait-for-port process 30000 true))] ;; Parse from output
+      (if (not discovered-port)
         (do
           (log/error "Failed to discover nREPL port from process output")
           (when (.isAlive process)
@@ -155,8 +153,7 @@
                           {:command start-nrepl-cmd
                            :project-dir project-dir})))
         (do
-          (when discovered-port
-            (log/info (str "nREPL server started successfully on port " discovered-port)))
+          (log/info (str "nREPL server started successfully on port " discovered-port))
           ;; Setup automatic cleanup for the process
           (setup-process-cleanup process)
           {:port discovered-port
@@ -179,7 +176,7 @@
                            (io/file ".clojure-mcp" "config.edn")])
         config-file (first (filterv valid-paths/path-exists? config-locations))]
     (when config-file
-      (log/debug (str "Loading config from: "  config-file))
+      (log/debug (str "Loading config from: " config-file))
       (try
         (with-open [r (io/reader config-file)]
           (edn/read (java.io.PushbackReader. r)))
@@ -189,26 +186,19 @@
 
 (defn should-start-nrepl?
   "Determine if we should auto-start an nREPL server based on conditions:
-   Providing a :port with :start-nrepl-cmd works
-   Providing a :parse-nrepl-port with :start-nrepl-cmd works
-   Providing a :port AND :parse-nrepl-port with an :start-nrepl-cmd does not work
-   1. CLI: Both :start-nrepl-cmd AND :project-dir provided in args
-   2. Config: .clojure-mcp/config.edn exists with :start-nrepl-cmd"
+   1. CLI: start-nrepl-cmd AND project-dir provided in args
+   2. Config: .clojure-mcp/config.edn exists with :start-nrepl-cmd
+   If :port is provided with :start-nrepl-cmd, uses fixed port instead of parsing."
   [nrepl-args]
-  (let [{:keys [start-nrepl-cmd project-dir parse-nrepl-port port]} nrepl-args]
+  (let [{:keys [start-nrepl-cmd project-dir port]} nrepl-args]
     (cond
-      ;; Don't start if port provided but no start command (existing behavior)
+      ;; Don't start if port provided but no start command (connecting to existing nREPL)
       (and port (not start-nrepl-cmd))
       (do
-        (log/debug "Port already provided without start command, skipping auto-start")
+        (log/debug "Port provided without start command, connecting to existing nREPL")
         false)
 
-      (and port start-nrepl-cmd parse-nrepl-port) ;; makes no sense to provide this on the command line
-      (do
-        (log/debug ":port and :parse-nrepl-port both provided with nrepl start command, skipping auto-start")
-        false)
-
-      ;; CLI condition: start-nrepl-cmd AND project-dir provided (regardless of port)
+      ;; CLI condition: start-nrepl-cmd AND project-dir provided
       (and start-nrepl-cmd project-dir)
       (do
         (log/info "Auto-start condition met: CLI args provided")
@@ -217,57 +207,38 @@
       ;; Config file condition
       :else
       (if-let [config (load-config-if-exists project-dir)]
-        (cond
-          ;; To me providing a port along with parse-nrepl-port indicates that command line args are overriding the config.edn
-          ;; this way you can have startup commands in config.edn and yet
-          ;; still easily override them on the cli...  This is overly complex of course.
-          (and port (:start-nrepl-cmd config) (:parse-nrepl-port config))
-          (do
-            (log/debug ":port and :parse-nrepl-port both provided with nrepl start command, skipping auto-start")
-            false)
-
-          (:start-nrepl-cmd config)
+        (if (:start-nrepl-cmd config)
           (do
             (log/info "Auto-start condition met: config file with :start-nrepl-cmd")
             true)
-
-          :else false)
+          false)
         false))))
 
-(defn add-project-dir [{:keys [start-nrepl-cmd project-dir parse-nrepl-port port] :as nrepl-args}]
-  (cond
-    ;; if a port is provided the intent is not clear here
-    (and parse-nrepl-port start-nrepl-cmd port) nrepl-args
-    (and start-nrepl-cmd (not project-dir))
+(defn add-project-dir [{:keys [start-nrepl-cmd project-dir] :as nrepl-args}]
+  (if (and start-nrepl-cmd (not project-dir))
     (assoc nrepl-args :project-dir (System/getProperty "user.dir"))
-    :else nrepl-args))
+    nrepl-args))
 
 (defn maybe-start-nrepl-process
   "Main wrapper that conditionally starts an nREPL process.
    Returns updated nrepl-args with discovered :port if process was started,
-   otherwise returns nrepl-args unchanged."
+   otherwise returns nrepl-args unchanged.
+   When :port is provided with :start-nrepl-cmd, uses that fixed port.
+   When :port is not provided, parses port from command output."
   [nrepl-args]
   (let [nrepl-args' (add-project-dir nrepl-args)]
     (if (should-start-nrepl? nrepl-args')
       (let [;; Load config and merge with CLI args (CLI takes precedence)
             config (load-config-if-exists (:project-dir nrepl-args'))
             merged-args (merge config nrepl-args')
-            {:keys [start-nrepl-cmd parse-nrepl-port port]
-             :or {parse-nrepl-port true}} merged-args]
-      ;; Validate: if parse-nrepl-port is false, port must be provided
-        (when (and (false? parse-nrepl-port) (not port))
-          (throw
-           (ex-info "When :parse-nrepl-port is false, :port must be provided"
-                    {:start-nrepl-cmd  start-nrepl-cmd
-                     :parse-nrepl-port parse-nrepl-port})))
+            {:keys [start-nrepl-cmd]} merged-args]
         (log/info "Starting nREPL process automatically")
         (let [{:keys [port process]} (start-nrepl-process merged-args)]
           (if port
             (do
-              (log/info (str "Using discovered port: " port))
+              (log/info (str "Using port: " port))
               (assoc nrepl-args :port port :nrepl-process process))
-          ;; If parse-nrepl-port was false, we still started the process
-          ;; but didn't get a port - this is an error for our use case
+            ;; This shouldn't happen as start-nrepl-process throws on failure
             (throw (ex-info "nREPL process started but no port available"
                             {:start-nrepl-cmd start-nrepl-cmd})))))
       (do

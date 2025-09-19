@@ -77,7 +77,6 @@
    :exec-args {:port 7888
                ;; test auto starting the repl
                ;; :start-nrepl-cmd ["clojure" "-M:nrepl"]
-               ;; :parse-nrepl-port true
                }}
 
   ;; DEV setup needs logback.xml
