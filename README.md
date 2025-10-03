@@ -96,52 +96,45 @@ it is.
 ## The Good News
 
 There is a story that Clojure developers may have come to believe. The
-story that LLMs are overwhelmingly trained on more mainstream
-languages and as a result those languages have the upper hand when it
-comes to LLM assisted coding. I'm here to tell you that this is just
-not true.
+story that Modern LLMs are trained on vast amounts of code from mainstream
+programming languages and as a result LLMs struggle to perform well
+when working with niche languages like Clojure. I'm here to tell you
+that this is just not true.
 
-LLMs can definitely write Clojure. However, our the secret weapon is
-the REPL and the fast focused feedback loop that it offers.
+LLMs can definitely read and write Clojure. However, our the secret
+weapon is the REPL and how it provides a fast focused feedback loop
+for LLMs to verify and refine code.
 
-IMHO Clojure is an overwhemingly excellent langauge for LLM assisted
-development.  All it needed was bit of a bridge... and this is what
-I've tried to create with ClojureMCP.
+IMHO Clojure is an excellent language for LLM assisted development.
+All it needed was bit of a bridge... and this is what I've tried to
+create with ClojureMCP.
 
 ## 🚀 Overview
 
 This project implements an MCP server that connects AI models to a
-Clojure nREPL, and Specialized Clojure editing tools enabling a unique
-Clojure develop experience.
+Clojure nREPL, and specialized Clojure editing tools enabling a unique
+Clojure development experience.
 
 Clojure MCP provides a superset of the tools that Claude Code uses,
 so you can use it to work on Clojure **without any other tools**.
 
-I highly recommend using ClojureMCP with Claude Desktop to start.
-It's more attractive and there are **no api charges!**. Claude
-Desktop, also let's you have quick access to **your own prompts** and
-other resources provided by the clojure-mcp server. Having a stack of
-your own prompts available in a UI menu is very convenient.
-
-Claude Desktop also let's you see the complete reasoning and tool
+I highly recommend using ClojureMCP with Claude Desktop to
+start. Claude Desktop let's you see the complete reasoning and tool
 execution chain which is very helpful for understanding how the LLM
 interacts with the tools. Seeing the explicit reasoning and actions is
 invaluable for learning how to work with LLMs as coding assistants.
-
-> If you use the built in Agent tools you will accumulate API charges.
 
 ## Main Features
 
 - **Clojure REPL Connection** - which lints the eval and auto-balances parens
 - **Clojure Aware editing** - Using clj-kondo, parinfer, cljfmt, and clj-rewrite
-- **Optimized set of tools for Clojure Development** superset of Claude Code
-- **Emacs edit highlighting** - alpha
+- **Optimized set of tools for Clojure Development** superset of Claude Code tools
 
 ### Why REPL-Driven Development with AI?
 
 For Clojurists an LLM assisted REPL is the killer application.
 
-LLMs can:
+With a REPL LLMs can:
 * **Iterate** on code in the REPL and when finished present the findings before adding them to your code
 * **Validate** and probe your code for errors
 * **Debug** your code in the REPL
@@ -156,66 +149,42 @@ to the REPL tool and force the use of the REPL.
 
 These tools are designed to work with the latest LLM models. For the best experience with sexp editing and Clojure-specific tooling, we recommend:
 
-- **Anthropic Claude 3.7** and **Claude 4 (sonnet or opus)** (especially **Claude 4** for best results)
+- **Anthropic Claude 3.7** and **Claude 4.1 (sonnet or opus)** (especially **Claude 4.1** for best results)
 - **Gemini 2.5**
-- **OpenAI o4-mini** or **o3**
+- **OpenAI o4-mini** or **o3** or **chat-gpt-5**
 
-I highly recommend **Claude 4** if you want to see long autonomous
+I highly recommend **Claude 4.1** if you want to see long autonomous
 agentic action chains.
 
-The pattern-based structural editing tools require high model
-performance, so using one of these recommended models will
-significantly improve your experience.
+ClojureMCP's structural editing tools require high model performance,
+so using one of these recommended models will significantly improve
+your experience.
 
-I personally use Claude 4 Opus for almost everything, and I'm
-subscribed to Anthropic's $100US/month 5x Max plan.
-
-## Cohesive Clojure Toolbox
-
-### Why These Tools Work as a Complete System
-
-The Clojure MCP tools are intentionally designed as a **cohesive
-"action space"** for Clojure development, rather than a collection of
-independent utilities. This design approach offers several key
-advantages:
-
-#### Enhanced Clojure Integration
-- **Smart file editing** with automatic parenthesis balancing, linting, and formatting
-- **Structure-aware operations** that understand Clojure syntax and semantics
-- **REPL-integrated development** with stateful namespace management
-
-#### Stateful File Tracking
-The tools maintain state about file read/write operations to ensure safety.
-- Tracks when files were last read vs. modified externally
-- Prevents editing conflicts by validating file state before modifications
-
-#### Optimized Tool Interactions
-When tools work together as a system, they can:
-- Share context and state for more intelligent behavior
-- Provide consistent interfaces and error handling
-- Optimize the overall development workflow
+I personally use Claude 4.1 Opus/Sonnet for almost everything,
+and I'm subscribed to Anthropic's $100US/month 5x Max plan. The value
+I get out of it is far more than what I'm paying.
 
 ### Using with Claude Code and Other Code Assistants
+
+ClojureMCP can be used with alomst and LLM cleint like Claude Desktop,
+Claude Code and many many more.
+
+I use ClojureMCP with Claude Desktop because I can read the tool
+outputs more clearly, which helps me understand how well the tools are
+performing and if they are working well together to an LLM to behave
+as an effective Clojure coding assistant.
+
+I also use ClojureMCP with Claude Code and works great but I make sure
+to turn off many of the Claude Code tools that duplicate the
+functionality of the ClojureMCP tools.
 
 While you *can* use these tools alongside Claude Code and other code
 assistants with their own tooling, I recommend **trying the Clojure
 MCP tools independently first** to experience their full
-capabilities. Here's why:
-
-**Potential Conflicts:**
-- Other file_edit tools track file read/write state independently, which can cause confusion
-- Overlapping tool functionality may lead to inconsistent behavior
-- Mixed toolsets can dilute the optimized workflow experience
-
-**Getting the Full Benefits:**
-- Experience the curated Clojure development workflow as intended
-- Understand how the tools complement each other
-- Develop familiarity with the curated approach before mixing systems
-
-Once you're comfortable with the Clojure MCP toolset, you can make
-informed decisions about whether to use it exclusively or integrate it
-with other code assistants and development tools based on your
-specific workflow needs.
+capabilities. Once you're comfortable with the Clojure MCP toolset,
+you can make informed decisions about whether to use it exclusively or
+integrate it with other code assistants and development tools based on
+your specific workflow needs.
 
 ## Help and Community Resources
 
