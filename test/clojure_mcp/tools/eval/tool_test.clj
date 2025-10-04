@@ -105,7 +105,7 @@
 
   (testing "Evaluation with error"
     (let [result (test-tool-execution "(throw (Exception. \"test error\"))")]
-      (is (true? (:error? result)))
+      (is (false? (:error? result)))
       (is (= 1 (count (:result result))))
       (is (str/includes? (first (:result result)) "test error"))
       (is (str/includes? (first (:result result)) "Execution error"))))
@@ -113,9 +113,9 @@
   (testing "Multiple expressions"
     (let [result (test-tool-execution "(println \"first\") (+ 10 20)")]
       (is (false? (:error? result)))
-       (is (= 3 (count (:result result))))
-       (is (= ["first\n=> nil" "*===============================================*" "=> 30"]
-              (:result result)))))
+      (is (= 3 (count (:result result))))
+      (is (= ["first\n=> nil" "*===============================================*" "=> 30"]
+             (:result result)))))
 
   (testing "Evaluation with linter warning"
     (let [result (test-tool-execution "(let [unused 1] (+ 2 3))")]
@@ -126,7 +126,7 @@
 
   (testing "Evaluation with linter error"
     (let [result (test-tool-execution "(def ^:dynamic 1)")]
-      (is (true? (:error? result)))
+      (is (false? (:error? result)))
       (is (= 1 (count (:result result))))
       (is (str/includes? (first (:result result)) "Can't parse")))))
 

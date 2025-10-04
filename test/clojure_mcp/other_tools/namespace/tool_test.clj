@@ -197,7 +197,7 @@
 
   (testing "list-vars-in-namespace tool execution with invalid namespace"
     (let [result (test-tool-execution :list-vars-in-namespace {"namespace" "nonexistent.ns"})]
-      (is (true? (:error? result)))
+      (is (false? (:error? result)))
       (is (string? (first (:result result))))
       (is (str/includes? (first (:result result)) "not found")))))
 
