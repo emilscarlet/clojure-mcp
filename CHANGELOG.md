@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.1.11-alpha] - 2025-10-04
+
+Changes to Claude Desktop and Claude Code have caused me to re-evalute
+how I use the error flag in the ClojureMCP tool responses.
+
+This change should make the tool results still legible/expandable when
+there is a poorly executed tool call as opposed to a tool malfunction.
+
+ClojureMCP tools has been mistakenly using the MCP tool result error
+flag to signal errors that result from normal tool operation. Now only
+runtime Exceptions will cause the MCP tool response to contain an
+error flag of true.
+
+### Fixed
+- Prevent validation errors from sending MCP tool result error flag - validation/processing errors now appear in results without signaling protocol-level errors
+- Fix truncation message showing file size in bytes instead of line count (#107)
+
 ## [0.1.10-alpha] - 2025-09-19
 
 ### Simplified nREPL Auto-Start 🚀
