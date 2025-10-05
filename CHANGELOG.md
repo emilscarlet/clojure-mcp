@@ -2,18 +2,24 @@
 
 ## [Unreleased]
 
-## [0.1.11-alpha] - 2025-10-04
+## [0.1.11-alpha] - 2025-10-04 Error Handling Changes in ClojureMCP Tool Responses
 
-Changes to Claude Desktop and Claude Code have caused me to re-evalute
-how I use the error flag in the ClojureMCP tool responses.
+Recent changes to Claude Desktop and Claude Code prompted me to
+reconsider how ClojureMCP tools use the error flag in their responses.
 
-This change should make the tool results still legible/expandable when
-there is a poorly executed tool call as opposed to a tool malfunction.
+Claude Desktop and Claude Code are now limiting the view of results
+when a tool responds with the error flag set to true.
 
-ClojureMCP tools has been mistakenly using the MCP tool result error
-flag to signal errors that result from normal tool operation. Now only
-runtime Exceptions will cause the MCP tool response to contain an
-error flag of true.
+Before this commit, the error flag was incorrectly triggered for
+errors arising from normal tool operation (such as invalid parameters
+or expected failure conditions). This approach made tool results less
+accessible when a tool was used incorrectly, even though the tool
+itself was functioning properly.
+
+Going forward, the error flag will only be set to true for runtime
+Exceptions that indicate actual tool malfunctions. This change ensures
+tool results remain legible and expandable when users make mistakes in
+tool usage, while still clearly signaling genuine system errors.
 
 ### Fixed
 - Prevent validation errors from sending MCP tool result error flag - validation/processing errors now appear in results without signaling protocol-level errors
